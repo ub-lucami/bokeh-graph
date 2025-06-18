@@ -7,7 +7,7 @@ services:
     ports:
       - "5006:5006"
     command: >
-      bokeh serve first_screen_fileinput.py
+      bokeh serve first_screen_fileinput.py second_screen_fileinput.py
       --allow-websocket-origin=*
       --port=5006
       --websocket-max-message-size=1073741824
