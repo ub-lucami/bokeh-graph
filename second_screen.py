@@ -1,7 +1,7 @@
+# -------------------------------
+# Base directory and configuration
+# -------------------------------
 import os
-import re
-import base64
-import io
 import numpy as np
 import pandas as pd
 
@@ -9,7 +9,6 @@ from bokeh.io import curdoc
 from bokeh.plotting import figure
 from bokeh.models import (
     ColumnDataSource,
-    FileInput,
     MultiSelect,
     Dropdown,
     Button,
@@ -26,20 +25,10 @@ from bokeh.models import (
 )
 from bokeh.layouts import column, row
 
-# -------------------------------
-# Configuration
-# -------------------------------
 SRC_PATH = os.getcwd()
 ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
-#DATA_FOLDER = r"C:\Users\gaspa\OneDrive\Desktop\masters\data\MatAnx_Data_all"
-DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+data_dir = f'{ROOT_PATH}/data/MatAnx_Data_all'
 colors = ["blue", "green", "red", "orange", "purple", "brown", "pink", "gray", "cyan", "lime", "magenta"]
-files_uploaded = False
-
-# -------------------------------
-# Data store for uploaded CSVs
-# -------------------------------
-uploaded_dfs = {}  
 
 # -------------------------------
 # Gramian Angular Field (GAF) Function
@@ -69,6 +58,7 @@ p = figure(
 p.extra_y_ranges = {"right": Range1d(start=0, end=1)}
 p.add_layout(LinearAxis(y_range_name="right", axis_label="Vrednost anksioznosti"), 'right')
 
+# Dictionaries to hold active signal sources
 sources = {}
 sources_020 = {}
 
@@ -91,20 +81,13 @@ available_features = [
 ]
 feature_dropdown = Dropdown(label="Tip značilk:", menu=available_features)
 
-file_input = FileInput(accept=".csv", multiple=True, width=400)
-file_list_div = Div(text="Ni naloženih datotek", width=400)
-# file_list_div.visible = False
-auto_upload_button = Button(label="Naloži vse datoteke", width=100)
-
 signals_title = Div(text="<b>Izbira signala</b>")
 ids_title     = Div(text="<b>Izbira uID</b>")
 noe_title     = Div(text="<b>Izbira št. poskusa</b>")
 feature_title = Div(text="<b>Izbira tipa značilk</b>")
-file_title    = Div(text="<b>Izberi datoteke</b>")
 
 signals_column  = column(signals_title, multi_select_signals)
 ids_column      = column(ids_title, multi_select_IDs)
-file_column     = column(file_title, file_input, file_list_div, auto_upload_button)
 controls_column = column(noe_title, dropdown_nrs, feature_title, feature_dropdown)
 
 plot_button         = Button(label="Izriši", width=120)
@@ -161,7 +144,7 @@ per_uid_stats_table.visible  = False
 start_end.visible            = False
 
 # -------------------------------
-# Containers for GAF and spectral
+# Containers for GAF and spectral sub-plots
 # -------------------------------
 gaf_container      = column()
 spectral_container = column()
@@ -205,7 +188,9 @@ def update_feature(event):
     selected_feature = event.item
     feature_dropdown.label = f"Tip značilk: {selected_feature}"
 
-    has_data = bool(drawn_data and files_uploaded and selected_IDs and selected_nr and selected_signals)
+    has_data = bool(drawn_data and selected_IDs and selected_nr and selected_signals)
+
+    has_data = bool(drawn_data and selected_IDs and selected_nr and selected_signals)
 
     if has_data and selected_feature == "časovne značilke":
         stats_table.columns         = time_columns
@@ -225,90 +210,12 @@ def update_feature(event):
     per_uid_stats_table.visible  = has_data
 
     show = selected_feature in ["časovne značilke", "spektralne značilke"]
-    per_uid_inputs_column.visible = show and has_data
-    per_uid_stats_table.visible   = show and has_data
+    per_uid_inputs_column.visible = show
+    per_uid_stats_table.visible   = show
 
     update_statistics(None, None, None)
     update_per_uid_table()
-
-# -------------------------------
-# Callback to handle file uploads via FileInput
-# -------------------------------
-def upload_files(attr, old, new):
-    global files_uploaded
-    names = file_input.filename
-    values = file_input.value
-    if not names or not values:
-        file_list_div.text = "Ni še naloženih datotek"
-        files_uploaded = False
-        return
-    if isinstance(names, str):
-        names = [names]
-    if isinstance(values, str):
-        values = [values]
-
-    uploaded_dfs.clear()
-    valid_upload = False
-
-    for fname, b64 in zip(names, values):
-        try:
-            decoded = base64.b64decode(b64)
-            bio = io.BytesIO(decoded)
-            df = pd.read_csv(bio, header=None)
-        except Exception as e:
-            print(f"Failed to parse {fname}: {e}")
-            continue
-        m = re.match(r'^(\d+)-(\d+)-(\d+)-(\d+)\.csv$', fname)
-        if m:
-            signal_code, id_code, nr_code, suffix = m.groups()
-            uploaded_dfs[(signal_code, id_code, nr_code)] = df
-            valid_upload = True
-        else:
-            print(f"Filename {fname} doesn't match expected pattern.")
-
-    file_list_div.text = "<b>Datoteke so naložene</b>" if valid_upload else "<b>Ni naloženih datotek</b>"
-    files_uploaded = valid_upload
-
-# -------------------------------
-# Callback to handle auto-upload from data folder
-# -------------------------------
-def auto_upload_from_folder():
-    global files_uploaded
-    #print(f"Checking folder: {DATA_FOLDER}")
-    uploaded_dfs.clear() 
-    valid_upload = False
-    loaded_files = []
-
-    if not os.path.exists(DATA_FOLDER):
-        file_list_div.text = f"Mapa '{DATA_FOLDER}' ne obstaja!"
-        print(f"Error: Folder '{DATA_FOLDER}' does not exist")
-        files_uploaded = False
-        return
-
-    for fname in os.listdir(DATA_FOLDER):
-        if not fname.endswith('.csv'):
-            continue
-        file_path = os.path.join(DATA_FOLDER, fname)
-        try:
-            df = pd.read_csv(file_path, header=None)
-            m = re.match(r'^(\d+)-(\d+)-(\d+)-(\d+)\.csv$', fname)
-            if m:
-                signal_code, id_code, nr_code, suffix = m.groups()
-                uploaded_dfs[(signal_code, id_code, nr_code)] = df
-                loaded_files.append(fname)
-                valid_upload = True
-            else:
-                print(f"Filename {fname} doesn't match expected pattern.")
-        except Exception as e:
-            print(f"Failed to parse {fname}: {e}")
-            continue
-
-    file_list_div.text = "<b>Datoteke so naložene</b>" if valid_upload else "<b>Ni veljavnih datotek v mapi!</b>"
-    files_uploaded = valid_upload
-
-file_input.on_change('filename', upload_files)
-auto_upload_button.on_click(auto_upload_from_folder)
-
+    
 multi_select_signals.on_change('value', update_signals)
 multi_select_IDs.on_change('value', update_IDs)
 dropdown_nrs.on_click(update_nr)
@@ -318,12 +225,14 @@ feature_dropdown.on_click(update_feature)
 # Plot button: load/normalize signals & update both tables
 # -------------------------------
 def draw_data():
-    global sources, sources_020, drawn_data, files_uploaded
+    global sources, sources_020, drawn_data
     sources     = {}
     sources_020 = {}
-    drawn_data  = False
 
-    if not selected_signals or not selected_IDs or selected_nr is None or not files_uploaded:
+    if bool(selected_IDs and selected_nr and selected_signals):
+        drawn_data  = True
+
+    if not selected_signals or not selected_IDs or selected_nr is None:
         global_ok_button.visible        = False
         per_uid_title.visible          = False
         stats_table_title.visible      = False
@@ -331,7 +240,7 @@ def draw_data():
         per_uid_stats_table.visible    = False
         per_uid_inputs_column.visible  = False
         start_end.visible              = False
-        p.title.text = "Ena ali več možnosti v spustnem seznamu ni izbranih ali datoteke niso naložene!"
+        p.title.text = "Ena ali več možnosti v spustnem seznamu ni izbranih!"
         stats_source.data              = {}
         per_uid_stats_source.data      = {}
         return
@@ -340,61 +249,50 @@ def draw_data():
     if p.legend:
         p.legend.items = []
 
-    any_data_plotted = False
     color_index = 0
-
     for signal in selected_signals:
         for uid in selected_IDs:
-            key = (signal, uid, selected_nr)
+            key = f"{signal}-{uid}-{selected_nr}"
             sources[key] = ColumnDataSource(data={'time': [], 'signal': []})
             sources_020[key] = ColumnDataSource(data={'time': [], 'signal': []})
             src = sources[key]
-
-            color = colors[color_index % len(colors)]
-            if key in uploaded_dfs:
-                df = uploaded_dfs[key]
-                min_val = df[3].min()
-                max_val = df[3].max()
-                normalized_signal = (df[3] - min_val) / (max_val - min_val)
-                src.data = {'time': df[2], 'signal': normalized_signal}
-                p.line('time', 'signal',
-                       legend_label=f"Signal {signal}-{uid}-{selected_nr}",
-                       line_width=2, source=src, color=color)
-                color_index += 1
-                any_data_plotted = True
+            file_path = os.path.join(data_dir, f"{signal}-{uid}-{selected_nr}-000.csv")
+            if os.path.exists(file_path):
+                try:
+                    df = pd.read_csv(file_path, header=None)
+                    min_val = df[3].min()
+                    max_val = df[3].max()
+                    normalized_signal = (df[3] - min_val) / (max_val - min_val)
+                    src.data = {'time': df[2], 'signal': normalized_signal}
+                    color = colors[color_index % len(colors)]
+                    p.line('time', 'signal',
+                           legend_label=f"Signal {signal}-{uid}-{selected_nr}",
+                           line_width=2, source=src, color=color)
+                    color_index += 1
+                except Exception as e:
+                    print(f"Error loading data for {key}: {e}")
             else:
-                print(f"No upload for signal file {signal}-{uid}-{selected_nr}-000.csv")
-
-            key_020 = ('020', uid, selected_nr)
-            if key_020 in uploaded_dfs:
-                df_020 = uploaded_dfs[key_020]
-                sources_020[key].data = {'time': df_020[2], 'signal': df_020[4]}
-                p.scatter('time', 'signal',
-                          legend_label=f"Anx 020-{uid}-{selected_nr}",
-                          size=10, source=sources_020[key],
-                          y_range_name="right",
-                          marker='square',
-                          fill_alpha=1,
-                          line_color='black',
-                          line_width=1)
-                any_data_plotted = True
+                print(f"File not found for {key}!")
+            
+            file_path_020 = os.path.join(data_dir, f"020-{uid}-{selected_nr}-000.csv")
+            if os.path.exists(file_path_020):
+                try:
+                    df_020 = pd.read_csv(file_path_020, header=None)
+                    sources_020[key].data = {'time': df_020[2], 'signal': df_020[4]}
+                    p.scatter('time', 'signal',
+                              legend_label=f"Anx 020-{uid}-{selected_nr}",
+                              size=10, source=sources_020[key],
+                              y_range_name="right",
+                              color=color,
+                              marker='square',
+                              fill_alpha=1,
+                              line_color='black',
+                              line_width=1)
+                except Exception as e:
+                    print(f"Error loading signal 020 for {uid}: {e}")
             else:
-                print(f"No upload for anks file 020-{uid}-{selected_nr}-000.csv")
+                print(f"File for signal 020 not found for {uid}!")
 
-    if not any_data_plotted:
-        global_ok_button.visible        = False
-        per_uid_title.visible          = False
-        stats_table_title.visible      = False
-        stats_table.visible            = False
-        per_uid_stats_table.visible    = False
-        per_uid_inputs_column.visible  = False
-        start_end.visible              = False
-        p.title.text = "Ni podatkov za izris: preverite, ali so izbrane datoteke pravilne!"
-        stats_source.data              = {}
-        per_uid_stats_source.data      = {}
-        return
-
-    drawn_data = True
     p.y_range.start = 0
     p.y_range.end   = 1
     p.extra_y_ranges["right"].start = 0
@@ -405,26 +303,28 @@ def draw_data():
 
     stats_table.visible           = show_stats
     per_uid_title.visible         = show_stats
-    stats_table_title.visible     = show_stats
+    stats_table_title.visible = show_stats
     start_end.visible             = show_stats
     per_uid_inputs_column.visible = show_stats
-    per_uid_stats_table.visible   = show_stats
+    per_uid_stats_table.visible = show_stats
     global_ok_button.visible      = show_stats and len(selected_IDs) > 1
 
     if show_stats:
         if selected_feature == "časovne značilke":
             stats_table.columns         = time_columns
             per_uid_stats_table.columns = per_uid_time_columns
+            global_ok_button.visible = True
         else:
             stats_table.columns         = spectral_columns
             per_uid_stats_table.columns = per_uid_spectral_columns
+            global_ok_button.visible = True
 
     per_uid_inputs_column.children = []
     header = row(
-        Div(text="", width=30),
+        Div(text="", width=30),                  
         Div(text="<b>t1</b>", width=100),
         Spacer(width=10),
-        Div(text="<b>t2</b>", width=100),
+        Div(text="<b>t2</b>",   width=100),
         Spacer(width=10),
         Div(text="<b>Potrdi vse</b>", width=100)
     )
@@ -443,8 +343,8 @@ def draw_data():
         )
 
     show = len(selected_IDs) >= 1
-    per_uid_inputs_column.visible = show and show_stats
-    global_ok_button.visible      = show and show_stats
+    per_uid_inputs_column.visible = show
+    global_ok_button.visible      = show
 
     update_statistics(None, None, None)
     update_per_uid_table()
@@ -556,8 +456,7 @@ def update_statistics(attr, old, new):
         if filtered_signal.size == 0:
             continue
 
-        parts      = key if isinstance(key, str) else f"{key[0]}-{key[1]}-{key[2]}"
-        parts      = parts.split('-')
+        parts      = key.split('-')
         uID        = parts[1] if len(parts) >= 2 else ""
         signal_code= parts[0] if len(parts) >= 1 else ""
 
@@ -628,7 +527,7 @@ def update_per_uid_table():
 
     for signal in selected_signals:
         for uid in selected_IDs:
-            key = (signal, uid, selected_nr)
+            key = f"{signal}-{uid}-{selected_nr}"
             if key not in sources:
                 continue
             start_w, end_w = uid_inputs.get(uid, (None, None))
@@ -665,7 +564,6 @@ def update_per_uid_table():
 # -------------------------------
 left_col = column(
     row(
-        file_column,
         signals_column,
         ids_column,
         column(noe_title, dropdown_nrs, feature_title, feature_dropdown, plot_button)
