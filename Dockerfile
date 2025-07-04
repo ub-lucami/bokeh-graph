@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY first_screen_fileinput.py second_screen_fileinput.py Data .
+COPY first_screen_fileinput.py second_screen_fileinput.py .
+COPY Data/ ./Data/
 
 EXPOSE 5006
 
