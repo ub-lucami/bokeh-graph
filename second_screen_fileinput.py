@@ -284,7 +284,7 @@ def auto_upload_from_folder():
     loaded_files = []
 
     if not os.path.exists(DATA_FOLDER):
-        file_list_div.text = f"Mapa '{DATA_FOLDER}' ne obstaja!"
+        file_list_div.text = f"Mapa '{DATA_FOLDER}' ne obstaja! - "
         print(f"Error: Folder '{DATA_FOLDER}' does not exist")
         files_uploaded = False
         return
