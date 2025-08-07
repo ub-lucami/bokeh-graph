@@ -16,7 +16,7 @@ from bokeh.models import (
 # Configuration
 # -------------------------------
 SRC_PATH = os.getcwd()
-ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
+ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH)) #, "../"))
 #DATA_FOLDER = r"C:\Users\gaspa\OneDrive\Desktop\masters\data\MatAnx_Data_all"
 #DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
 DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
@@ -155,7 +155,7 @@ def auto_upload_from_folder():
             df = pd.read_csv(file_path, header=None)
             m = re.match(r'^(\d+)-(\d+)-(\d+)-(\d+)\.csv$', fname)
             if m:
-                signal_code, id_code, nr_code, suffix = m.groups()
+                signal_code, id_code, nr_code, suffix = m.groups() 
                 uploaded_dfs[(signal_code, id_code, nr_code)] = df
                 loaded_files.append(fname)
                 valid_upload = True
