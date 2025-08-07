@@ -18,7 +18,8 @@ from bokeh.models import (
 SRC_PATH = os.getcwd()
 ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
 #DATA_FOLDER = r"C:\Users\gaspa\OneDrive\Desktop\masters\data\MatAnx_Data_all"
-DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+#DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
 colors = ["blue", "green", "red", "orange", "purple", "brown", "pink", "gray", "cyan", "lime", "magenta"]
 files_uploaded = False
 
@@ -45,16 +46,16 @@ p.add_layout(LinearAxis(y_range_name="right", axis_label="Vrednost anksioznosti"
 file_input = FileInput(accept=".csv", multiple=True, width=400)
 file_list_div = Div(text="Ni naloženih datotek", width=400)
 # file_list_div.visible = False
-auto_upload_button = Button(label="Naloži vse datoteke", width=100)
+auto_upload_button = Button(label="Naloži datoteke", width=100)
 
 # -------------------------------
 # Selection widgets for plotting
 # -------------------------------
 available_signals = ['021', '022', '023', '024', '025', '026', '027']
-multi_select_signals = MultiSelect(options=available_signals)
+multi_select_signals = MultiSelect(options=available_signals, size=7)
 
 available_IDs = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011']
-multi_select_IDs = MultiSelect(options=available_IDs)
+multi_select_IDs = MultiSelect(options=available_IDs, size=7)
 
 available_nrs = ['001', '002', '003', '004', '005']
 menu_nrs = [(noe, noe) for noe in available_nrs]
@@ -233,11 +234,12 @@ button.on_click(draw_data)
 # -------------------------------
 # Layout and add to document
 # -------------------------------
-file_column = column(Div(text="<b>Izberi datoteke</b>"), file_input, file_list_div, auto_upload_button)
+#file_column = column(Div(text="<b>Izberi datoteke</b>"), file_input, file_list_div, auto_upload_button)
+file_column = column(Div(text="<b>Naloži datoteke</b>"), auto_upload_button, file_list_div)
 signals_column = column(Div(text="<b>Izbira signala</b>"), multi_select_signals)
 ids_column = column(Div(text="<b>Izbira uID</b>"), multi_select_IDs)
 controls_column = column(Div(text="<b>Izbira št. poskusa</b>"), dropdown_nrs, button)
-controls = row(file_column, signals_column, ids_column, controls_column)
+controls = row(signals_column, ids_column, controls_column, file_column)
 layout = column(controls, p)
 
 curdoc().add_root(layout)

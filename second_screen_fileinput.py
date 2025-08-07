@@ -31,8 +31,8 @@ from bokeh.layouts import column, row
 # -------------------------------
 SRC_PATH = os.getcwd()
 ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
-#DATA_FOLDER = r"C:\Users\gaspa\OneDrive\Desktop\masters\data\MatAnx_Data_all"
-DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+#DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
 colors = ["blue", "green", "red", "orange", "purple", "brown", "pink", "gray", "cyan", "lime", "magenta"]
 files_uploaded = False
 
@@ -76,10 +76,10 @@ sources_020 = {}
 # Widgets
 # -------------------------------
 available_signals = ['021', '022', '023', '024', '025', '026', '027']
-multi_select_signals = MultiSelect(title="", options=available_signals)
+multi_select_signals = MultiSelect(title="", options=available_signals, size=7)
 
 available_IDs = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010', '011']
-multi_select_IDs = MultiSelect(title="", options=available_IDs)
+multi_select_IDs = MultiSelect(title="", options=available_IDs, size=7)
 
 available_nrs = ['001', '002', '003', '004', '005']
 dropdown_nrs = Dropdown(label="Izberi št. poskusa", menu=[(v, v) for v in available_nrs])
@@ -87,30 +87,30 @@ dropdown_nrs = Dropdown(label="Izberi št. poskusa", menu=[(v, v) for v in avail
 available_features = [
     ("časovne značilke", "časovne značilke"),
     ("spektralne značilke", "spektralne značilke"),
-    ("gramova kotna polja", "gramova kotna polja")
+    ("gramovo kotno polje", "gramovo kotno polje")
 ]
 feature_dropdown = Dropdown(label="Tip značilk:", menu=available_features)
 
 file_input = FileInput(accept=".csv", multiple=True, width=400)
 file_list_div = Div(text="Ni naloženih datotek", width=400)
-# file_list_div.visible = False
-auto_upload_button = Button(label="Naloži vse datoteke", width=100)
+auto_upload_button = Button(label="Naloži datoteke", width=100)
 
 signals_title = Div(text="<b>Izbira signala</b>")
 ids_title     = Div(text="<b>Izbira uID</b>")
 noe_title     = Div(text="<b>Izbira št. poskusa</b>")
+files_title     = Div(text="<b>Naloži datoteke</b>")
 feature_title = Div(text="<b>Izbira tipa značilk</b>")
 file_title    = Div(text="<b>Izberi datoteke</b>")
 
 signals_column  = column(signals_title, multi_select_signals)
 ids_column      = column(ids_title, multi_select_IDs)
-file_column     = column(file_title, file_input, file_list_div, auto_upload_button)
+file_column     = column(auto_upload_button, file_list_div)
 controls_column = column(noe_title, dropdown_nrs, feature_title, feature_dropdown)
 
 plot_button         = Button(label="Izriši", width=120)
 global_ok_button    = Button(label="OK", width=100)
 global_ok_button.visible = False
-global_ok_button.on_click(lambda: update_per_uid_table())
+global_ok_button.on_click(lambda: [update_per_uid_table(), update_gaf_plots(None, None, None)])
 
 drawn_data = False
 
@@ -155,10 +155,8 @@ per_uid_stats_table = DataTable(
 
 per_uid_inputs_column = column()
 per_uid_title          = Div(text="<b>Nastavitev časovnih območij</b>", visible=False)
-start_end              = row(per_uid_stats_table, per_uid_inputs_column)
 per_uid_inputs_column.visible = False
 per_uid_stats_table.visible  = False
-start_end.visible            = False
 
 # -------------------------------
 # Containers for GAF and spectral
@@ -192,6 +190,8 @@ def update_IDs(attr, old, new):
         else:
             start_w = NumericInput(value=0, low=0, high=10000, width=100)
             end_w   = NumericInput(value=10000, low=0, high=10000, width=100)
+            start_w.on_change('value', update_gaf_plots)
+            end_w.on_change('value', update_gaf_plots)
         new_inputs[uid] = (start_w, end_w)
     uid_inputs = new_inputs
 
@@ -213,23 +213,28 @@ def update_feature(event):
     elif has_data and selected_feature == "spektralne značilke":
         stats_table.columns         = spectral_columns
         per_uid_stats_table.columns = per_uid_spectral_columns
+    elif selected_feature == "gramovo kotno polje":
+        stats_table.columns         = time_columns
+        per_uid_stats_table.columns = per_uid_time_columns
     else:
         stats_source.data = {}
         has_data = False
 
-    stats_table_title.visible    = has_data
+    stats_table_title.visible    = has_data and selected_feature != "gramovo kotno polje"
     per_uid_title.visible        = has_data
-    start_end.visible            = has_data
+    per_uid_inputs_column.visible = has_data
+    per_uid_stats_table.visible = has_data and selected_feature != "gramovo kotno polje"
     global_ok_button.visible     = has_data
-    stats_table.visible          = has_data
-    per_uid_stats_table.visible  = has_data
-
-    show = selected_feature in ["časovne značilke", "spektralne značilke"]
-    per_uid_inputs_column.visible = show and has_data
-    per_uid_stats_table.visible   = show and has_data
+    stats_table.visible          = has_data and selected_feature != "gramovo kotno polje"
+    gaf_container.visible        = has_data and selected_feature == "gramovo kotno polje"
+    spectral_container.visible   = has_data and selected_feature == "spektralne značilke"
 
     update_statistics(None, None, None)
     update_per_uid_table()
+    if selected_feature == "gramovo kotno polje" and has_data:
+        update_gaf_plots(None, None, None)
+    else:
+        gaf_container.children = []
 
 # -------------------------------
 # Callback to handle file uploads via FileInput
@@ -274,7 +279,6 @@ def upload_files(attr, old, new):
 # -------------------------------
 def auto_upload_from_folder():
     global files_uploaded
-    #print(f"Checking folder: {DATA_FOLDER}")
     uploaded_dfs.clear() 
     valid_upload = False
     loaded_files = []
@@ -330,7 +334,6 @@ def draw_data():
         stats_table.visible            = False
         per_uid_stats_table.visible    = False
         per_uid_inputs_column.visible  = False
-        start_end.visible              = False
         p.title.text = "Ena ali več možnosti v spustnem seznamu ni izbranih ali datoteke niso naložene!"
         stats_source.data              = {}
         per_uid_stats_source.data      = {}
@@ -376,7 +379,8 @@ def draw_data():
                           marker='square',
                           fill_alpha=1,
                           line_color='black',
-                          line_width=1)
+                          line_width=1,
+                          color = color)
                 any_data_plotted = True
             else:
                 print(f"No upload for anks file 020-{uid}-{selected_nr}-000.csv")
@@ -386,9 +390,8 @@ def draw_data():
         per_uid_title.visible          = False
         stats_table_title.visible      = False
         stats_table.visible            = False
-        per_uid_stats_table.visible    = False
-        per_uid_inputs_column.visible  = False
-        start_end.visible              = False
+        per_uid_inputs_column.visible = False
+        per_uid_stats_table.visible = False
         p.title.text = "Ni podatkov za izris: preverite, ali so izbrane datoteke pravilne!"
         stats_source.data              = {}
         per_uid_stats_source.data      = {}
@@ -401,15 +404,16 @@ def draw_data():
     p.extra_y_ranges["right"].end   = 1
     p.title.text = "Vrednosti signala skozi čas"
 
-    show_stats = selected_feature in ["časovne značilke", "spektralne značilke"]
+    show_stats = selected_feature in ["časovne značilke", "spektralne značilke", "gramovo kotno polje"]
 
-    stats_table.visible           = show_stats
+    stats_table.visible           = show_stats and selected_feature != "gramovo kotno polje"
     per_uid_title.visible         = show_stats
-    stats_table_title.visible     = show_stats
-    start_end.visible             = show_stats
+    stats_table_title.visible     = show_stats and selected_feature != "gramovo kotno polje"
     per_uid_inputs_column.visible = show_stats
-    per_uid_stats_table.visible   = show_stats
+    per_uid_stats_table.visible = show_stats and selected_feature != "gramovo kotno polje"
     global_ok_button.visible      = show_stats and len(selected_IDs) > 1
+    gaf_container.visible         = show_stats and selected_feature == "gramovo kotno polje"
+    spectral_container.visible    = show_stats and selected_feature == "spektralne značilke"
 
     if show_stats:
         if selected_feature == "časovne značilke":
@@ -448,6 +452,8 @@ def draw_data():
 
     update_statistics(None, None, None)
     update_per_uid_table()
+    if selected_feature == "gramovo kotno polje" and show_stats:
+        update_gaf_plots(None, None, None)
 
 plot_button.on_click(draw_data)
 
@@ -483,12 +489,12 @@ def plot_spectral_features():
 
         fig_amp = figure(width=plot_size, height=plot_size,
                          toolbar_location=None,
-                         title=f"Log-Amplitude {key}")
+                         title=f"Amplituda {key}")
         fig_amp.line(xvals, log_amp_spec, line_width=1)
 
         fig_phase = figure(width=plot_size, height=plot_size,
                            toolbar_location=None,
-                           title=f"Phase {key}")
+                           title=f"Faza {key}")
         fig_phase.line(xvals, phase_spec, line_width=1)
 
         columns_list.append(column(fig_amp, fig_phase))
@@ -502,38 +508,52 @@ def plot_spectral_features():
 # Dynamic GAF update
 # -------------------------------
 def update_gaf_plots(attr, old, new):
-    start, end = p.x_range.start, p.x_range.end
-    gaf_plots = []
-    for key, source in sources.items():
-        data  = source.data
-        times = np.array(data.get('time', []))
-        sig   = np.array(data.get('signal', []))
-        if times.size == 0:
-            continue
-        mask = (times >= start) & (times <= end)
-        filtered_signal = sig[mask]
-        if filtered_signal.size < 2:
-            continue
-        max_length = 2500
-        if filtered_signal.size > max_length:
-            factor = int(filtered_signal.size / max_length)
-            filtered_signal = filtered_signal[::factor]
-        gaf_sum, _ = gramian_angular_field(filtered_signal)
-        if gaf_sum.size == 0:
-            continue
+    if selected_feature != "gramovo kotno polje":
+        gaf_container.children = []
+        gaf_container.visible = False
+        return
 
-        fig = figure(width=400, height=300, tools="pan,wheel_zoom,reset",
-                     title=f"GAF {key}")
-        mapper    = LinearColorMapper(palette="Viridis256", low=np.min(gaf_sum), high=np.max(gaf_sum))
-        fig.image(image=[gaf_sum], x=0, y=0, dw=gaf_sum.shape[1], dh=gaf_sum.shape[0], color_mapper=mapper)
-        color_bar = ColorBar(color_mapper=mapper, label_standoff=12, location=(0, 0))
-        fig.add_layout(color_bar, 'right')
-        gaf_plots.append(fig)
+    gaf_plots = []
+    for uid in selected_IDs:
+        start_w, end_w = uid_inputs.get(uid, (None, None))
+        if start_w is None or end_w is None:
+            continue
+        start, end = start_w.value, end_w.value
+        for signal in selected_signals:
+            key = (signal, uid, selected_nr)
+            if key not in sources:
+                continue
+            data = sources[key].data
+            times = np.array(data.get('time', []))
+            sig = np.array(data.get('signal', []))
+            if times.size == 0:
+                continue
+            mask = (times >= start) & (times <= end)
+            filtered_signal = sig[mask]
+            if filtered_signal.size < 2:
+                continue
+            max_length = 2500
+            if filtered_signal.size > max_length:
+                factor = int(filtered_signal.size / max_length)
+                filtered_signal = filtered_signal[::factor]
+            gaf_sum, _ = gramian_angular_field(filtered_signal)
+            if gaf_sum.size == 0:
+                continue
+
+            fig = figure(width=400, height=300, tools="pan,wheel_zoom,reset",
+                         title=f"GAF {signal}-{uid}-{selected_nr}")
+            mapper = LinearColorMapper(palette="Viridis256", low=np.min(gaf_sum), high=np.max(gaf_sum))
+            fig.image(image=[gaf_sum], x=0, y=0, dw=gaf_sum.shape[1], dh=gaf_sum.shape[0], color_mapper=mapper)
+            color_bar = ColorBar(color_mapper=mapper, label_standoff=12, location=(0, 0))
+            fig.add_layout(color_bar, 'right')
+            gaf_plots.append(fig)
 
     if gaf_plots:
         gaf_container.children = [row(*gaf_plots)]
+        gaf_container.visible = True
     else:
         gaf_container.children = []
+        gaf_container.visible = False
 
 # -------------------------------
 # Update “global” features table
@@ -606,13 +626,18 @@ def update_statistics(attr, old, new):
 
     if selected_feature == "spektralne značilke":
         spectral_container.children = [plot_spectral_features()]
-        gaf_container.children      = []
-    elif selected_feature == "gramova kotna polja":
+        spectral_container.visible = True
+        gaf_container.children = []
+        gaf_container.visible = False
+    elif selected_feature == "gramovo kotno polje":
         update_gaf_plots(None, None, None)
         spectral_container.children = []
+        spectral_container.visible = False
     else:
         spectral_container.children = []
-        gaf_container.children      = []
+        spectral_container.visible = False
+        gaf_container.children = []
+        gaf_container.visible = False
 
 p.x_range.on_change('start', update_statistics)
 p.x_range.on_change('end',   update_statistics)
@@ -665,22 +690,23 @@ def update_per_uid_table():
 # -------------------------------
 left_col = column(
     row(
-        file_column,
         signals_column,
         ids_column,
-        column(noe_title, dropdown_nrs, feature_title, feature_dropdown, plot_button)
+        column(noe_title, dropdown_nrs, feature_title, feature_dropdown, plot_button),
+        column(files_title, file_column),
     ),
     stats_table_title,
     stats_table,
     Spacer(height=10),
     per_uid_title,
-    start_end,
+    row(per_uid_stats_table, per_uid_inputs_column),
     Spacer(height=10),
 )
 
 spacer1 = Spacer(width=50, height=10)
 spacer2 = Spacer(width=50, height=10)
 top_row = row(left_col, spacer1, gaf_container, spacer2, spectral_container)
+
 layout  = column(
     top_row,
     p,
