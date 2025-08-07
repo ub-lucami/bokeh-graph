@@ -16,10 +16,10 @@ from bokeh.models import (
 # Configuration
 # -------------------------------
 SRC_PATH = os.getcwd()
-ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
+ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH)) #, "../"))
 #DATA_FOLDER = r"C:\Users\gaspa\OneDrive\Desktop\masters\data\MatAnx_Data_all"
-DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
-#DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
+#DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
 colors = ["blue", "green", "red", "orange", "purple", "brown", "pink", "gray", "cyan", "lime", "magenta"]
 files_uploaded = False
 
@@ -243,4 +243,5 @@ controls = row(signals_column, ids_column, controls_column, file_column)
 layout = column(controls, p)
 
 curdoc().add_root(layout)
+
 curdoc().title = "Zaslon 1"
