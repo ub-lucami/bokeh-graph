@@ -132,7 +132,7 @@ spectral_columns = [
 ]
 stats_source = ColumnDataSource(data={})
 stats_table  = DataTable(source=stats_source, columns=time_columns, width=400, height=200)
-stats_table_title = Div(text="<b>Vrednosti izbranega signala</b>", visible=False)
+stats_table_title = Div(text="<b>Značilke izbranih signalov</b>", visible=False)
 
 stats_table.visible = False
 
@@ -154,7 +154,7 @@ per_uid_stats_table = DataTable(
 )
 
 per_uid_inputs_column = column()
-per_uid_title          = Div(text="<b>Nastavitev časovnih območij</b>", visible=False)
+per_uid_title          = Div(text="<b>Značilke siznalov in nastavitev časovnih območij</b>", visible=False)
 per_uid_inputs_column.visible = False
 per_uid_stats_table.visible  = False
 
@@ -717,3 +717,4 @@ curdoc().clear()
 curdoc().add_root(layout)
 
 curdoc().title = "Zaslon 2"
+
