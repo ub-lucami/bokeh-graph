@@ -30,9 +30,9 @@ from bokeh.layouts import column, row
 # Configuration
 # -------------------------------
 SRC_PATH = os.getcwd()
-ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH, "../"))
-DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
-#DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
+ROOT_PATH = os.path.abspath(os.path.join(SRC_PATH)) # , "../"))
+#DATA_FOLDER = os.path.join(os.getcwd(), "..", "data", "MatAnx_Data_all")
+DATA_FOLDER = os.path.join(os.getcwd(), "data", "MatAnx_Data_all")
 colors = ["blue", "green", "red", "orange", "purple", "brown", "pink", "gray", "cyan", "lime", "magenta"]
 files_uploaded = False
 
@@ -715,4 +715,5 @@ layout  = column(
 
 curdoc().clear()
 curdoc().add_root(layout)
+
 curdoc().title = "Zaslon 2"
